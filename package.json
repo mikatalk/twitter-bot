@@ -1,0 +1,15 @@
+{
+  "name": "twitter-bot",
+  "version": "0.0.0",
+  "description": "Twitter Bot",
+  "scripts": {
+    "bot": "node bot.js"
+  },
+  "author": "Mika I.",
+  "license": "MIT",
+  "devDependencies": {
+    "twitter": "^1.4.0",
+    "moment": "^2.18.1",
+    "mysql": "^2.13.0"
+  }
+}
