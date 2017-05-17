@@ -16,17 +16,19 @@ const db = mysql.createPool({
   database : config.DB_NAME
 });
 
+// Pretty logs
 log = (...opts) => {
   console.log( '['+moment().format('M-D-YY H:mm')+'] -', opts.join(' ') );
 }
 
+// Initialize and create DB if not exist
 createDB = () => {
   return new Promise( (resolve, reject) => {
     let q = "CREATE TABLE IF NOT EXISTS `users` (          "
      + " `id` int(11) NOT NULL auto_increment,             "
      + " `user_id` int(11) NOT NULL default '0',           " // -> id
      + " `profile_image` varchar(140) NOT NULL default '', " // -> profile_image_url_https
-     + " `follower_count` int(11) NULL,                    " // -> followers_count
+     + " `followers_count` int(11) NULL,                   " // -> followers_count
      + " `friends_count` int(11) NULL,                     " // -> friends_count
      + " `screen_name` varchar(40) NOT NULL default '',    " // -> screen_name
      + " `name` varchar(40) NOT NULL default '',           " // -> name
@@ -41,15 +43,28 @@ createDB = () => {
   });
 }
 
-/*********************
-INSERT INTO tbl_name
-    (a,b,c)
-VALUES
-    (1,2,3),
-    (4,5,6),
-    (7,8,9);
-**********************/
+// Save/Update users 
+saveUsers = (users) => {
+  return new Promise( (resolve, reject) => {
+    let q = "INSERT INTO `users` ( "
+     + " `user_id`, `profile_image`, `followers_count`, `friends_count`, "
+     + " `screen_name`, `name`, `time_zone`, `lang` ) "
+     + " VALUES ";
+    for ( let user of users ) {
+      const { id: user_id, profile_image, followers_count, friends_count, screen_name, name, time_zone, lang } = user;
+      q += '(  `' + user_id +'`, `' + profile_image +'`, `' + followers_count +'`, `' + friends_count +'`, `'
+      q += screen_name +'`, `' + name +'`, `' + time_zone +'`, `' + lang +'`,  ), '
+    }
+    q = q.slice(0, -1); // remove last coma
+    q += ";"
+    db.query( q, (error, results, fields) => {
+      if ( error ) return reject(error);
+      else resolve();
+    });
+  });
+}
 
+// Delay requests to prevent blocking the bot from twitter 
 coolDown = (ms) => {
   ms = ms || 5000;   
   return new Promise((resolve, reject) => {
@@ -57,6 +72,7 @@ coolDown = (ms) => {
   });
 }
 
+// Fetch All Followers
 getFollowers = () => {
   let query = {
     user_id: 'michael_iriarte',
@@ -71,7 +87,6 @@ getFollowers = () => {
       client.get('followers/list', query, function(error, response, raw){
         if ( error ) {
           return reject(error);
-          //return log('[ERROR] -> ', JSON.stringify(error));
         }
         Array.prototype.push.apply(followers, response.users);
         if ( response.next_cursor > 0 ) {
@@ -86,6 +101,7 @@ getFollowers = () => {
   });
 }
 
+// Fetch All Friends
 getFriends = () => {
   let query = {
     user_id: 'michael_iriarte',
@@ -100,7 +116,6 @@ getFriends = () => {
       client.get('friends/list', query, function(error, response, raw){
         if ( error ) {
           return reject(error);
-          //return log('[ERROR] -> ', JSON.stringify(error));
         }
         Array.prototype.push.apply(friends, response.users);
         if ( response.next_cursor > 0 ) {
@@ -115,21 +130,22 @@ getFriends = () => {
   });
 } 
 
+// Run
 createDB()
-  .then(res => {
-    return Promise.all([
-      getFollowers(),
-      getFriends(),
-    ]);
-  })
-  .then(values => {
-    log('followers:', values[0].length);
-    log('friends:', values[1].length);
-  }, error => {
-    log('[CAUGHT ERROR] -> ', JSON.stringify(error));
-  })
-  .then( () => {
-    db.end();
-  });
+.then(res => {
+  return Promise.all([
+    getFollowers(),
+    getFriends(),
+  ]);
+})
+.then(values => {
+  log('followers:', values[0].length);
+  log('friends:', values[1].length);
+}, error => {
+  log('[CAUGHT ERROR] -> ', JSON.stringify(error));
+})
+.then( () => {
+  db.end();
+});
 
 
