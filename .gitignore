@@ -1,3 +1,6 @@
+# hide private tokens
+*.private.*
+
 # Logs
 logs
 *.log
