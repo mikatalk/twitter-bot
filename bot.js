@@ -20,27 +20,49 @@ log = (...opts) => {
   console.log( '['+moment().format('M-D-YY H:mm')+'] -', opts.join(' ') );
 }
 
-let q = "CREATE TABLE IF NOT EXISTS `followers` (      "
- + " `id` int(11) NOT NULL auto_increment,             "
- + " `user_id` int(11) NOT NULL default '0',             "
-// + " `cvfilename` varchar(250)  NOT NULL default '',   "    
-// + " `cvpagenumber`  int(11) NULL,                     "
-// + " `cilineno` int(11)  NULL,                         "
-// + " `batchname`  varchar(100) NOT NULL default '',    "
-// + " `type` varchar(20) NOT NULL default '',           "
-// + " `data` varchar(100) NOT NULL default '',          "
- + " PRIMARY KEY  (`id`) );"
-db.query( q, (error, results, fields) => {
-  if ( error ) throw error;
-  if ( results.warningCount == 0 ) log('Created table followers');
-});
+createDB = () => {
+  return new Promise( (resolve, reject) => {
+    let q = "CREATE TABLE IF NOT EXISTS `users` (          "
+     + " `id` int(11) NOT NULL auto_increment,             "
+     + " `user_id` int(11) NOT NULL default '0',           " // -> id
+     + " `profile_image` varchar(140) NOT NULL default '', " // -> profile_image_url_https
+     + " `follower_count` int(11) NULL,                    " // -> followers_count
+     + " `friends_count` int(11) NULL,                     " // -> friends_count
+     + " `screen_name` varchar(40) NOT NULL default '',    " // -> screen_name
+     + " `name` varchar(40) NOT NULL default '',           " // -> name
+     + " `time_zone` varchar(40) NOT NULL default '',      " // -> time_zone
+     + " `lang` varchar(4) NOT NULL default '',            " // -> lang
+     + " PRIMARY KEY  (`id`) );"
+    db.query( q, (error, results, fields) => {
+      if ( error ) return reject(error);
+      if ( results.warningCount == 0 ) log('Created table followers');
+      resolve();
+    });
+  });
+}
+
+/*********************
+INSERT INTO tbl_name
+    (a,b,c)
+VALUES
+    (1,2,3),
+    (4,5,6),
+    (7,8,9);
+**********************/
 
 coolDown = (func) => {
   log('Cooling down...');
   setTimeout(func, 5000);
 }
 
-getFollowers = (query) => {
+getFollowers = () => {
+  let query = {
+    user_id: 'michael_iriarte',
+    count: 200,
+    skip_status: true,
+    include_user_entities: true,
+    cursor: -1
+  };
   return new Promise( (resolve, reject) => {
     let followers = [];
     getNext200Followers = (query) => {
@@ -62,7 +84,14 @@ getFollowers = (query) => {
   });
 }
 
-getFriends = (query) => {
+getFriends = () => {
+  let query = {
+    user_id: 'michael_iriarte',
+    count: 200,
+    skip_status: true,
+    include_user_entities: true,
+    cursor: -1
+  };
   return new Promise( (resolve, reject) => {
     let friends = [];
     getNext200Friends = (query) => {
@@ -84,50 +113,21 @@ getFriends = (query) => {
   });
 } 
 
-/*
-getFollowers({
-  user_id: 'michael_iriarte',
-  count: 200,
-  skip_status: true,
-  include_user_entities: true,
-  cursor: -1
-}).then(followers => {
-  log('followers:', followers.length);
-}).then(()=>{
-  return getFriends({
-    user_id: 'michael_iriarte',
-    count: 200,
-    skip_status: true,
-    include_user_entities: true,
-    cursor: -1
+createDB()
+  .then(res => {
+    return Promise.all([
+      getFollowers(),
+      getFriends(),
+    ]);
   })
-}).then(friends => {
-  log('friends:', friends.length);
-  db.end();
-})
-*/
-Promise.all([
-  getFollowers({
-    user_id: 'michael_iriarte',
-    count: 200,
-    skip_status: true,
-    include_user_entities: true,
-    cursor: -1
-  }),
-  getFriends({
-    user_id: 'michael_iriarte',
-    count: 200,
-    skip_status: true,
-    include_user_entities: true,
-    cursor: -1
-  }) 
-]).then(values => {
-  log('followers:', values[0].length);
-  log('friends:', values[1].length); 
-  //db.end();
-}, error => {
-  log('[CAUGHT ERROR] -> ', JSON.stringify(error));
-}).then( () => {
-  db.end();
-});
+  .then(values => {
+    log('followers:', values[0].length);
+    log('friends:', values[1].length);
+  }, error => {
+    log('[CAUGHT ERROR] -> ', JSON.stringify(error));
+  })
+  .then( () => {
+    db.end();
+  });
+
 
