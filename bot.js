@@ -50,9 +50,11 @@ VALUES
     (7,8,9);
 **********************/
 
-coolDown = (func) => {
-  log('Cooling down...');
-  setTimeout(func, 5000);
+coolDown = (ms) => {
+  ms = ms || 5000;   
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 getFollowers = () => {
@@ -74,7 +76,7 @@ getFollowers = () => {
         Array.prototype.push.apply(followers, response.users);
         if ( response.next_cursor > 0 ) {
           query.cursor = response.next_cursor;
-          coolDown( () => { getNext200Followers(query); } );
+          coolDown().then( () => { getNext200Followers(query); } );
         } else {
           resolve(followers);
         }
@@ -103,7 +105,7 @@ getFriends = () => {
         Array.prototype.push.apply(friends, response.users);
         if ( response.next_cursor > 0 ) {
           query.cursor = response.next_cursor;
-          coolDown( () => { getNext200Friends(query); } );
+          coolDown().then( () => { getNext200Friends(query); } );
         } else {
           resolve(friends);
         } 
