@@ -18,7 +18,7 @@ const db = mysql.createPool({
 
 // Pretty logs
 log = (...opts) => {
-  console.log( '['+moment().format('M-D-YY H:mm')+'] -', opts.join(' ') );
+  console.log( '['+moment().format('MM-DD-YY H:mm:ss')+'] -', opts.join(' ') );
 }
 
 // Initialize and create DB if not exist
@@ -34,32 +34,64 @@ createDB = () => {
      + " `name` varchar(40) NOT NULL default '',           " // -> name
      + " `time_zone` varchar(40) NOT NULL default '',      " // -> time_zone
      + " `lang` varchar(4) NOT NULL default '',            " // -> lang
-     + " PRIMARY KEY  (`id`) );"
+     + " PRIMARY KEY  (`id`, `user_id`) );"
+//    log('Running query:', q);
     db.query( q, (error, results, fields) => {
       if ( error ) return reject(error);
-      if ( results.warningCount == 0 ) log('Created table followers');
+      if ( results.warningCount == 0 ) log('Created `users` table');
       resolve();
     });
   });
 }
 
 // Save/Update users 
-saveUsers = (users) => {
+saveUsers = (followers, friends) => {
+  let users = {};
+  makeUserFromFollower = data => {
+    log('data:', data);
+TO DO
+    let { user }  { data: { id: user_id, profile_image_url_https: profile_image, followers_count, friends_count, screen_name, name, time_zone, lang } }; 
+  // = data;
+    // if ( users['_'+id] ) {
+      // already exists, update
+    //} else {
+     //users['_'+id] = {
+     
+     //}
+    log('user:', user);
+    return user;
+  }
+
+  makeUserFromFriend = data => {
+    return {};
+  }
+ 
+//  for ( let friend of friends )
+//    users.push( makeUserFromFriend(friend) );
+ 
+  for ( let follower of followers ) 
+    users.push( makeUserFromFollower(follower) );
+
+
+
   return new Promise( (resolve, reject) => {
     let q = "INSERT INTO `users` ( "
      + " `user_id`, `profile_image`, `followers_count`, `friends_count`, "
      + " `screen_name`, `name`, `time_zone`, `lang` ) "
      + " VALUES ";
     for ( let user of users ) {
-      const { id: user_id, profile_image, followers_count, friends_count, screen_name, name, time_zone, lang } = user;
-      q += '(  `' + user_id +'`, `' + profile_image +'`, `' + followers_count +'`, `' + friends_count +'`, `'
-      q += screen_name +'`, `' + name +'`, `' + time_zone +'`, `' + lang +'`,  ), '
+      const { id: user_id, profile_image_url_https: profile_image, followers_count, 
+        friends_count, screen_name, name, time_zone, lang } = user;
+      q += ' (  ' + user_id +', "' + db.escape(profile_image) +'", ' + followers_count +', ' + friends_count 
+        +', "' + screen_name +'", "' + name +'", "' + time_zone +'", "' + lang +'" ),'
     }
     q = q.slice(0, -1); // remove last coma
     q += ";"
+    log('Running query:', q);
     db.query( q, (error, results, fields) => {
+      log('YO', error, results, fields)
       if ( error ) return reject(error);
-      else resolve();
+      return resolve();
     });
   });
 }
@@ -73,7 +105,7 @@ coolDown = (ms) => {
 }
 
 // Fetch All Followers
-getFollowers = () => {
+fetchFollowers = () => {
   let query = {
     user_id: 'michael_iriarte',
     count: 200,
@@ -83,26 +115,26 @@ getFollowers = () => {
   };
   return new Promise( (resolve, reject) => {
     let followers = [];
-    getNext200Followers = (query) => {
+    fetchNext200Followers = (query) => {
       client.get('followers/list', query, function(error, response, raw){
         if ( error ) {
-          return reject(error);
+          return reject(JSON.stringify(error));
         }
         Array.prototype.push.apply(followers, response.users);
         if ( response.next_cursor > 0 ) {
           query.cursor = response.next_cursor;
-          coolDown().then( () => { getNext200Followers(query); } );
+          coolDown().then( () => { fetchNext200Followers(query); } );
         } else {
           resolve(followers);
         }
       });
     }
-    getNext200Followers(query);
+    fetchNext200Followers(query);
   });
 }
 
 // Fetch All Friends
-getFriends = () => {
+fetchFriends = () => {
   let query = {
     user_id: 'michael_iriarte',
     count: 200,
@@ -112,40 +144,63 @@ getFriends = () => {
   };
   return new Promise( (resolve, reject) => {
     let friends = [];
-    getNext200Friends = (query) => {
+    fetchNext200Friends = (query) => {
       client.get('friends/list', query, function(error, response, raw){
         if ( error ) {
-          return reject(error);
+          return reject(JSON.stringify(error));
         }
         Array.prototype.push.apply(friends, response.users);
         if ( response.next_cursor > 0 ) {
           query.cursor = response.next_cursor;
-          coolDown().then( () => { getNext200Friends(query); } );
+          coolDown().then( () => { fetchNext200Friends(query); } );
         } else {
           resolve(friends);
         } 
       });
     } 
-    getNext200Friends(query);
+    fetchNext200Friends(query);
   });
 } 
 
 // Run
 createDB()
+/*
 .then(res => {
   return Promise.all([
-    getFollowers(),
-    getFriends(),
+    fetchFollowers(),
+    fetchFriends(),
   ]);
 })
+.catch(error => {
+  return log('[API ERROR] -> ', error);
+})
+*/
 .then(values => {
-  log('followers:', values[0].length);
-  log('friends:', values[1].length);
-}, error => {
-  log('[CAUGHT ERROR] -> ', JSON.stringify(error));
+
+values = require('./values.json').values;
+   
+  return new Promise( (resolve, reject) => {
+    if (!values) return reject('No Data!');
+    log('followers:', values[0].length);
+    log('friends:', values[1].length);
+   
+// log('***********************', JSON.stringify(values), '************************');
+    resolve(values[0], values[1]);
+  }) 
+})
+.then( (followers, friends)=>{
+// log('followers:', followers);
+  return saveUsers( followers, friends )
+})
+.catch(error => {
+  return log('[DB ERROR] -> ', error);
 })
 .then( () => {
-  db.end();
+  return db.end();
+})
+.catch(error => { 
+  return log('[FATAL ERROR] -> ', error);
 });
+
 
 
