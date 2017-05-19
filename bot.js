@@ -16,118 +16,204 @@ const db = mysql.createPool({
   database : config.DB_NAME
 });
 
+// Pretty logs
 log = (...opts) => {
-  console.log( '['+moment().format('M-D-YY H:mm')+'] -', opts.join(' ') );
+  console.log( '['+moment().format('MM-DD-YY H:mm:ss')+'] -', opts.join(' ') );
 }
 
-let q = "CREATE TABLE IF NOT EXISTS `followers` (      "
- + " `id` int(11) NOT NULL auto_increment,             "
- + " `user_id` int(11) NOT NULL default '0',             "
-// + " `cvfilename` varchar(250)  NOT NULL default '',   "    
-// + " `cvpagenumber`  int(11) NULL,                     "
-// + " `cilineno` int(11)  NULL,                         "
-// + " `batchname`  varchar(100) NOT NULL default '',    "
-// + " `type` varchar(20) NOT NULL default '',           "
-// + " `data` varchar(100) NOT NULL default '',          "
- + " PRIMARY KEY  (`id`) );"
-db.query( q, (error, results, fields) => {
-  if ( error ) throw error;
-  if ( results.warningCount == 0 ) log('Created table followers');
-});
-
-coolDown = (func) => {
-  log('Cooling down...');
-  setTimeout(func, 5000);
+// Initialize and create DB if not exist
+createDB = () => {
+  return new Promise( (resolve, reject) => {
+    let q = "CREATE TABLE IF NOT EXISTS `users` (          "
+   //  + " `id` int(11) NOT NULL auto_increment,             "
+     + " `id` int(11) NOT NULL default '0',                " // -> id
+     + " `profile_image` varchar(140) NOT NULL default '', " // -> profile_image_url_https
+     + " `followers_count` int(11) NULL,                   " // -> followers_count
+     + " `friends_count` int(11) NULL,                     " // -> friends_count
+     + " `screen_name` varchar(40) NOT NULL default '',    " // -> screen_name
+     + " `name` varchar(40) NOT NULL default '',           " // -> name
+     + " `time_zone` varchar(40) NOT NULL default '',      " // -> time_zone
+     + " `lang` varchar(4) NOT NULL default '',            " // -> lang
+     + " PRIMARY KEY  (`id`) );"
+//    log('Running query:', q);
+    db.query( q, (error, results, fields) => {
+      if ( error ) return reject(error);
+      if ( results.warningCount == 0 ) log('Created `users` table');
+      resolve();
+    });
+  });
 }
 
-getFollowers = (query) => {
+// Save/Update users 
+saveUsers = (followers, friends) => {
+  let users = [];
+  //makeUserFromFollower = data => {
+//    log('data:', data);
+// TO DO
+//    let { user }  { data: { id: user_id, profile_image_url_https: profile_image, followers_count, friends_count, screen_name, name, time_zone, lang } }; 
+  // = data;
+    // if ( users['_'+id] ) {
+      // already exists, update
+    //} else {
+     //users['_'+id] = {
+     
+     //}
+    //log('user:', user);
+   // return user;
+ // }//
+
+ // makeUserFromFriend = data => {
+//    return {};
+//  }
+ 
+  for ( let friend of friends )
+    users.push( friend );
+
+  for ( let follower of followers ) 
+    users.push( follower );
+
+
+
+  return new Promise( (resolve, reject) => {
+    let q = "INSERT INTO `users` ( "
+     + " `id`, `profile_image`, `followers_count`, `friends_count`, "
+     + " `screen_name`, `name`, `time_zone`, `lang` ) "
+     + " VALUES ";
+    for ( let user of users ) {
+      let data = { 
+        id: user.id, 
+        profile_image: user.profile_image_url_https, 
+        followers_count: user.followers_count, 
+        friends_count: user.friends_count, 
+        screen_name: user.screen_name, 
+        name: user.name, 
+        time_zone: user.time_zone, 
+        lang: user.lang
+      };
+
+      q += ' (  ' + data.id +', "' + db.escape(data.profile_image) +'", ' 
+        + data.followers_count +', ' + data.friends_count 
+        +', "' + data.screen_name +'", "' + data.name +'", "'
+        + data.time_zone +'", "' + data.lang +'" ),'
+    }
+    q = q.slice(0, -1); // remove last coma
+    q += " ON DUPLICATE KEY UPDATE profile_image=VALUES(profile_image),"
+    q += " followers_count=VALUES(followers_count), friends_count=VALUES(friends_count),"
+    q += " screen_name=VALUES(screen_name), name=VALUES(name), time_zone=VALUES(time_zone),"
+    q += " lang=VALUES(lang);"
+    // log('Running query:', q);
+    db.query( q, (error, results, fields) => {
+      // log('YO', error, results, fields)
+      if ( error ) return reject(error);
+      return resolve();
+    });
+  });
+}
+
+// Delay requests to prevent blocking the bot from twitter 
+coolDown = (ms) => {
+  ms = ms || 5000;   
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+// Fetch All Followers
+fetchFollowers = () => {
+  let query = {
+    user_id: 'michael_iriarte',
+    count: 200,
+    skip_status: true,
+    include_user_entities: true,
+    cursor: -1
+  };
   return new Promise( (resolve, reject) => {
     let followers = [];
-    getNext200Followers = (query) => {
+    fetchNext200Followers = (query) => {
       client.get('followers/list', query, function(error, response, raw){
         if ( error ) {
-          return reject(error);
-          //return log('[ERROR] -> ', JSON.stringify(error));
+          return reject(JSON.stringify(error));
         }
         Array.prototype.push.apply(followers, response.users);
         if ( response.next_cursor > 0 ) {
           query.cursor = response.next_cursor;
-          coolDown( () => { getNext200Followers(query); } );
+          coolDown().then( () => { fetchNext200Followers(query); } );
         } else {
           resolve(followers);
         }
       });
     }
-    getNext200Followers(query);
+    fetchNext200Followers(query);
   });
 }
 
-getFriends = (query) => {
+// Fetch All Friends
+fetchFriends = () => {
+  let query = {
+    user_id: 'michael_iriarte',
+    count: 200,
+    skip_status: true,
+    include_user_entities: true,
+    cursor: -1
+  };
   return new Promise( (resolve, reject) => {
     let friends = [];
-    getNext200Friends = (query) => {
+    fetchNext200Friends = (query) => {
       client.get('friends/list', query, function(error, response, raw){
         if ( error ) {
-          return reject(error);
-          //return log('[ERROR] -> ', JSON.stringify(error));
+          return reject(JSON.stringify(error));
         }
         Array.prototype.push.apply(friends, response.users);
         if ( response.next_cursor > 0 ) {
           query.cursor = response.next_cursor;
-          coolDown( () => { getNext200Friends(query); } );
+          coolDown().then( () => { fetchNext200Friends(query); } );
         } else {
           resolve(friends);
         } 
       });
     } 
-    getNext200Friends(query);
+    fetchNext200Friends(query);
   });
 } 
 
-/*
-getFollowers({
-  user_id: 'michael_iriarte',
-  count: 200,
-  skip_status: true,
-  include_user_entities: true,
-  cursor: -1
-}).then(followers => {
-  log('followers:', followers.length);
-}).then(()=>{
-  return getFriends({
-    user_id: 'michael_iriarte',
-    count: 200,
-    skip_status: true,
-    include_user_entities: true,
-    cursor: -1
-  })
-}).then(friends => {
-  log('friends:', friends.length);
-  db.end();
+// Run
+createDB()
+
+.then(res => {
+  return Promise.all([
+    fetchFollowers(),
+    fetchFriends(),
+  ]);
 })
-*/
-Promise.all([
-  getFollowers({
-    user_id: 'michael_iriarte',
-    count: 200,
-    skip_status: true,
-    include_user_entities: true,
-    cursor: -1
-  }),
-  getFriends({
-    user_id: 'michael_iriarte',
-    count: 200,
-    skip_status: true,
-    include_user_entities: true,
-    cursor: -1
+.catch(error => {
+  return log('[API ERROR] -> ', error);
+})
+
+.then(values => {
+  return new Promise( (resolve, reject) => {
+    if (!values) return reject('No Data!');
+    resolve(values);
   }) 
-]).then(values => {
+})
+
+.then( values => {
   log('followers:', values[0].length);
-  log('friends:', values[1].length); 
-  //db.end();
-}, error => {
-  log('[CAUGHT ERROR] -> ', JSON.stringify(error));
-}).then( () => {
-  db.end();
+  log('friends:', values[1].length);
+  return saveUsers(
+    values[0], // followers
+    values[1] // friends
+  )
+})
+.catch(error => {
+  return log('[DB ERROR] -> ', error);
+})
+
+.then( () => {
+  return db.end();
+})
+.catch(error => { 
+  return log('[FATAL ERROR] -> ', error);
 });
+
+
 
