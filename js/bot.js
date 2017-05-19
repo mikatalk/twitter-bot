@@ -1,6 +1,6 @@
 const mysql = require('mysql');
 const moment = require('moment');
-const config  = require('./config.private.json');
+const config  = require('./../config.private.json');
 const Twitter = require('twitter');
 const client  = new Twitter({
   consumer_key: config.CONSUMER_KEY,
@@ -17,9 +17,9 @@ const db = mysql.createPool({
 });
 
 // import functions
-const { coolDown, kill, log } = require('./bot/utils.js');
-const { createUsersDB, createConnectionsDB, saveUsers } = require('./bot/db.js');
-const { fetchFollowers, fetchFriends } = require('./bot/twitter-client.js');
+const { coolDown, kill, log } = require('./utils.js');
+const { createUsersDB, createConnectionsDB, saveUsers } = require('./db.js');
+const { fetchFollowers, fetchFriends } = require('./twitter-client.js');
 
 // Run
 Promise.all([

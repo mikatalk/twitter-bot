@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "Twitter Bot",
   "scripts": {
-    "bot": "node bot.js"
+    "bot": "node js/bot.js"
   },
   "author": "Mika I.",
   "license": "MIT",
