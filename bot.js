@@ -212,6 +212,7 @@ createDB()
   return db.end();
 })
 .catch(error => { 
+  log('closing connection...');
   return log('[FATAL ERROR] -> ', error);
 });
 
