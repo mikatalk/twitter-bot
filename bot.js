@@ -16,11 +16,10 @@ const db = mysql.createPool({
   database : config.DB_NAME
 });
 
+// import functions
 const { coolDown, kill, log } = require('./bot/utils.js');
 const { createUsersDB, createConnectionsDB, saveUsers } = require('./bot/db.js');
 const { fetchFollowers, fetchFriends } = require('./bot/twitter-client.js');
-
-
 
 // Run
 Promise.all([
