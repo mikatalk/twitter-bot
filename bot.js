@@ -21,12 +21,17 @@ log = (...opts) => {
   console.log( '['+moment().format('MM-DD-YY H:mm:ss')+'] -', opts.join(' ') );
 }
 
+exit = error => {
+  db.end().then( ()=> { 
+    process.exit();
+  });
+}
+
 // Initialize and create DB if not exist
-createDB = () => {
+createUsersDB = () => {
   return new Promise( (resolve, reject) => {
     let q = "CREATE TABLE IF NOT EXISTS `users` (          "
-   //  + " `id` int(11) NOT NULL auto_increment,             "
-     + " `id` int(11) NOT NULL default '0',                " // -> id
+     + " `id` int(11) NOT NULL default 0,                  " // -> id
      + " `profile_image` varchar(140) NOT NULL default '', " // -> profile_image_url_https
      + " `followers_count` int(11) NULL,                   " // -> followers_count
      + " `friends_count` int(11) NULL,                     " // -> friends_count
@@ -34,8 +39,8 @@ createDB = () => {
      + " `name` varchar(40) NOT NULL default '',           " // -> name
      + " `time_zone` varchar(40) NOT NULL default '',      " // -> time_zone
      + " `lang` varchar(4) NOT NULL default '',            " // -> lang
-     + " PRIMARY KEY  (`id`) );"
-//    log('Running query:', q);
+     + " `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+     + " PRIMARY KEY  (`id`) );                            "
     db.query( q, (error, results, fields) => {
       if ( error ) return reject(error);
       if ( results.warningCount == 0 ) log('Created `users` table');
@@ -44,36 +49,26 @@ createDB = () => {
   });
 }
 
+createConnectionsDB = () => {
+  return new Promise( (resolve, reject) => {
+    log('Initializing...');
+    let q = " CREATE TABLE IF NOT EXISTS `connections` (           " 
+     + " `id` int(11) NOT NULL default 0,                          "
+     + " `is_follower` int(11) NOT NULL default 0,                 " 
+     + " `is_friend` int(11) NOT NULL default 0,                   "
+     + " `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, " 
+     + " PRIMARY KEY  (`id`) );                                    "
+    db.query( q, (error, results, fields) => {
+      if ( error ) return reject(error);
+      if ( results.warningCount == 0 ) log('Created `connections` table');
+      resolve();
+    });
+  });
+}
 // Save/Update users 
 saveUsers = (followers, friends) => {
-  let users = [];
-  //makeUserFromFollower = data => {
-//    log('data:', data);
-// TO DO
-//    let { user }  { data: { id: user_id, profile_image_url_https: profile_image, followers_count, friends_count, screen_name, name, time_zone, lang } }; 
-  // = data;
-    // if ( users['_'+id] ) {
-      // already exists, update
-    //} else {
-     //users['_'+id] = {
-     
-     //}
-    //log('user:', user);
-   // return user;
- // }//
-
- // makeUserFromFriend = data => {
-//    return {};
-//  }
+  let users = followers.concat(friends);
  
-  for ( let friend of friends )
-    users.push( friend );
-
-  for ( let follower of followers ) 
-    users.push( follower );
-
-
-
   return new Promise( (resolve, reject) => {
     let q = "INSERT INTO `users` ( "
      + " `id`, `profile_image`, `followers_count`, `friends_count`, "
@@ -103,9 +98,8 @@ saveUsers = (followers, friends) => {
     q += " lang=VALUES(lang);"
     // log('Running query:', q);
     db.query( q, (error, results, fields) => {
-      // log('YO', error, results, fields)
       if ( error ) return reject(error);
-      return resolve();
+      return resolve([followers, friends]);
     });
   });
 }
@@ -177,9 +171,12 @@ fetchFriends = () => {
 } 
 
 // Run
-createDB()
-
+Promise.all([
+  createUsersDB(),
+  createConnectionsDB()
+])
 .then(res => {
+  log('Connecting to Twitter API...');
   return Promise.all([
     fetchFollowers(),
     fetchFriends(),
@@ -197,8 +194,8 @@ createDB()
 })
 
 .then( values => {
-  log('followers:', values[0].length);
-  log('friends:', values[1].length);
+  log('Followers:', values[0].length);
+  log('Friends:', values[1].length);
   return saveUsers(
     values[0], // followers
     values[1] // friends
@@ -207,12 +204,27 @@ createDB()
 .catch(error => {
   return log('[DB ERROR] -> ', error);
 })
-
+.then( values => {
+  let followers = values[0];
+  let friends = values[1];
+/*
+  let connections = {};
+  for ( let user of followers ) {
+    let key = '_'+user.id
+    if ( connections[key] ) {
+      connections[key].isF
+    } else {
+      connections[key] = { user: :}
+    }
+  }
+*/ 
+  log('Updated user table successfully.');
+})
 .then( () => {
+  log('Closing connection...');
   return db.end();
 })
 .catch(error => { 
-  log('closing connection...');
   return log('[FATAL ERROR] -> ', error);
 });
 
