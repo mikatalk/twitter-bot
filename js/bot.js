@@ -29,8 +29,8 @@ Promise.all([
 .then(res => {
   log('Connecting to Twitter API...');
   return Promise.all([
-    fetchFollowers(client),
-    fetchFriends(client),
+    fetchFollowers(client, config.TWITTER_HANDLE),
+    fetchFriends(client, config.TWITTER_HANDLE),
   ]);
 })
 .catch(error => {
@@ -49,7 +49,7 @@ Promise.all([
   log('Friends:', values[1].length);
   return saveUsers( db,
     values[0], // followers
-    values[1] // friends
+    values[1]  // friends
   )
 })
 .catch(error => {

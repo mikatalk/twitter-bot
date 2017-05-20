@@ -1,8 +1,8 @@
 
 // Fetch All Followers
-fetchFollowers = (client) => {
+fetchFollowers = (client, username) => {
   let query = {
-    user_id: 'michael_iriarte',
+    user_id: username,
     count: 200,
     skip_status: true,
     include_user_entities: true,
@@ -29,9 +29,9 @@ fetchFollowers = (client) => {
 }
 
 // Fetch All Friends
-fetchFriends = (client) => {
+fetchFriends = (client, username) => {
   let query = {
-    user_id: 'michael_iriarte',
+    user_id: username,
     count: 200,
     skip_status: true,
     include_user_entities: true,
