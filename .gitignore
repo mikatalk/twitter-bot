@@ -1,6 +1,9 @@
 # hide private tokens
 *.private.*
 
+# ignore vim swap file
+*.swp
+
 # Logs
 logs
 *.log
