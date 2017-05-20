@@ -1,3 +1,4 @@
+const fs = require('fs');
 const mysql = require('mysql');
 const moment = require('moment');
 const config  = require('./../config.private.json');
@@ -9,75 +10,59 @@ const client  = new Twitter({
   access_token_secret: config.TOKEN_SECRET 
 });
 const db = mysql.createPool({
-  connectionLimit : 10,
+  connectionLimit : 3,
   host     : config.DB_HOST,
   user     : config.DB_USER,
   password : config.DB_PASSWORD,
   database : config.DB_NAME
 });
-
+// process runs once a day so we use a fixed timestamp
+const timestamp = moment().format('YY-MM-DD 00:00:00'); // 'YY-MM-DD hh:mm:ss'
 // import functions
 const { coolDown, kill, log } = require('./utils.js');
-const { createUsersDB, createConnectionsDB, saveUsers } = require('./db.js');
+const { createTableUsers, createTableConnections, saveUsers,
+  saveFollowerConnections, saveFriendConnections } = require('./db.js');
 const { fetchFollowers, fetchFriends } = require('./twitter-client.js');
 
-// Run
+
+// Setup DB tables `Users` and `Connections`
 Promise.all([
-  createUsersDB(db),
-  createConnectionsDB(db)
-])
+  createTableUsers(db),
+  createTableConnections(db)
+]).catch(error => kill('[DB ERROR] -> ', error) )
+// Fetch Twitter Followers and Friends
 .then(res => {
-  log('Connecting to Twitter API...');
+  log('Connecting to Twitter API');
   return Promise.all([
     fetchFollowers(client, config.TWITTER_HANDLE),
     fetchFriends(client, config.TWITTER_HANDLE),
   ]);
-})
-.catch(error => {
-  return kill('[API ERROR] -> ', error);
-})
-
-.then(values => {
-  return new Promise( (resolve, reject) => {
-    if (!values) return reject('No Data!');
-    resolve(values);
-  }) 
-})
-
+}).catch(error => kill('[API ERROR] -> ', error) )
+// Save new users and daily connections
 .then( values => {
-  log('Followers:', values[0].length);
-  log('Friends:', values[1].length);
-  return saveUsers( db,
-    values[0], // followers
-    values[1]  // friends
-  )
-})
-.catch(error => {
-  return log('[DB ERROR] -> ', error);
-})
-.then( values => {
-  let followers = values[0];
-  let friends = values[1];
-/*
-  let connections = {};
-  for ( let user of followers ) {
-    let key = '_'+user.id
-    if ( connections[key] ) {
-      connections[key].isF
-    } else {
-      connections[key] = { user: :}
-    }
-  }
-*/ 
-  log('Updated user table successfully.');
-})
+  log('Updating `users` and `connections` table');
+  followers = values[0];
+  friends = values[1]; 
+  return Promise.all([
+    saveUsers(db, timestamp, followers, friends),
+    saveFollowerConnections(db, timestamp, followers),
+    saveFriendConnections(db, timestamp, friends)
+  ]);
+}).catch(error => kill('[DB ERROR] -> ', error) )
+// Generate daily report
+.then( (values) => {
+  return generateDailyReport(db, timestamp);
+}).catch(error => kill('[DB REPORT ERROR] -> ', error) )
+// print daily report in a log file
+.then( (values) => {
+  log('Saving report');
+  return fs.appendFile('./report.txt', 
+    `[${timestamp.slice(0, 8)}] - followers: ${followers.length} - friends: ${friends.length}\n` );  
+}).catch( error => kill('[FILE REPORT ERROR] -> ', error) )
+// We're done here
 .then( () => {
-  log('Closing connection...');
+  log('Closing connection');
   return db.end();
-})
-.catch(error => { 
-  return log('[FATAL ERROR] -> ', error);
-});
-
+}).catch(error => kill('[UNCAUGHT ERROR] -> ', error) );
 
 
