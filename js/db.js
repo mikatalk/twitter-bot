@@ -169,22 +169,35 @@ generateDailyReport = (db, today, yesterday) => {
         if ( user.was_follower && !user.is_follower ) lostFollowers.push(user);
         if ( !user.was_follower && user.is_follower ) newFollowers.push(user); 
       }
+      
+      let followerUpdate = '';
+      if ( newFollowers.length + lostFollowers.length ) {  
+        followerUpdate = ' ('+ (newFollowers.length > lostFollowers.length ? '+' : '-' )
+        followerUpdate += (newFollowers.length + lostFollowers.length) + ')'
+      }
+            
+      let friendUpdate = '';
+      if ( newFriends.length + lostFriends.length ) {
+        friendUpdate = ' ('+ (newFriends.length > lostFriends.length ? '+' : '-' )
+        friendUpdate += (newFriends.length + lostFriends.length) + ')'
+      } 
+
       let report = '\n'
-       + '# timestamp: ' + today.slice(0,8)         + '\n'
-       + '# friends: ' + friends.length                 + '\n'
-       + '# followers: ' + followers.length             + '\n';
+       + '# timestamp: ' + today.slice(0,8)                  + '\n'
+       + '# friends: ' + friends.length + friendUpdate       + '\n'
+       + '# followers: ' + followers.length + followerUpdate + '\n';
       if ( newFollowers.length + lostFollowers.length > 0 ) 
-        report += '# diff followers:'                 + '\n'
+        report += '# diff followers:'                        + '\n'
       for ( let user of newFollowers )  
-        report += '   + ' + user.id                      + '\n' 
+        report += '   + ' + user.id                          + '\n' 
       for ( let user of lostFollowers )
-        report += '   - ' + user.id                      + '\n'      
+        report += '   - ' + user.id                          + '\n'      
       if ( newFriends.length + lostFriends.length > 0 ) 
         report += '# diff friends: '                         + '\n'
       for ( let user of newFriends )
-        report += '   + ' + user.id                      + '\n' 
+        report += '   + ' + user.id                          + '\n' 
       for ( let user of lostFriends )
-        report += '   - ' + user.id                      + '\n' 
+        report += '   - ' + user.id                          + '\n' 
       report += '------------------------'
       resolve(report);
     })

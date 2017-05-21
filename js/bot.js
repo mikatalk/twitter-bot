@@ -18,7 +18,6 @@ const db = mysql.createPool({
 });
 // process runs once a day so we use a fixed timestamp
 const today = moment().format('YY-MM-DD 00:00:00');
-//const today = moment().add(-1, 'days').format('YY-MM-DD 00:00:00');
 
 const yesterday = moment(today,'YY-MM-DD 00:00:00').add(-1, 'days').format('YY-MM-DD 00:00:00');
 // import functions
