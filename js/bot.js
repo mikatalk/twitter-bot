@@ -27,7 +27,7 @@ const { createTableUsers, createTableConnections, saveUsers,
   saveFollowerConnections, saveFriendConnections } = require('./db.js');
 const { fetchFollowers, fetchFriends } = require('./twitter-client.js');
 
-/*
+
 //#######################################
 // uncommend to run report only
 return generateDailyReport(db, today, 
@@ -35,7 +35,7 @@ return generateDailyReport(db, today,
 ).catch(error => kill('[UNCAUGHT ERROR] -> ', error) )
 .then(report => kill(report) ); 
 //#######################################
-*/
+
 
 // Setup DB tables `Users` and `Connections`
 Promise.all([

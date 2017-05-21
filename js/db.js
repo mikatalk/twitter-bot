@@ -143,7 +143,11 @@ generateDailyReport = (db, today, yesterday) => {
       for ( let user of values[0] ) {
         if ( user.is_friend ) friends.push(user.id);
         if ( user.is_follower ) followers.push(user.id);
-        merged[user.id] = { is_friend: user.is_friend, is_follower: user.is_follower };
+        merged[user.id] = { 
+          id: user.id, 
+          is_friend: user.is_friend, 
+          is_follower: user.is_follower
+        };
       }
       // parse yesterday's connections
       for ( let user of values[1] ) {
@@ -151,7 +155,11 @@ generateDailyReport = (db, today, yesterday) => {
           merged[user.id].was_friend = user.is_friend
           merged[user.id].was_follower = user.is_follower
         } else {
-          merged[user.id] = { was_friend: user.is_friend, was_follower: user.is_follower };
+          merged[user.id] = { 
+            id: user.id, 
+            was_friend: user.is_friend,
+            was_follower: user.is_follower
+          };
         }
       }
       for ( let key in merged ) {
@@ -161,15 +169,23 @@ generateDailyReport = (db, today, yesterday) => {
         if ( user.was_follower && !user.is_follower ) lostFollowers.push(user);
         if ( !user.was_follower && user.is_follower ) newFollowers.push(user); 
       }
-      let report = '\n'//------------------------\n'
-       + '# day timestamp: ' + today.slice(0,8)         + '\n'
+      let report = '\n'
+       + '# timestamp: ' + today.slice(0,8)         + '\n'
        + '# friends: ' + friends.length                 + '\n'
-       + '# followers: ' + followers.length             + '\n'
-       + '# new followers: ' + newFollowers.length      + '\n'
-       + '# lost followers: ' + lostFollowers.length    + '\n'
-       + '# new friends: ' + newFriends.length          + '\n'
-       + '# lost friends: ' + lostFriends.length        + '\n'
-       + '------------------------'
+       + '# followers: ' + followers.length             + '\n';
+      if ( newFollowers.length + lostFollowers.length > 0 ) 
+        report += '# diff followers:'                 + '\n'
+      for ( let user of newFollowers )  
+        report += '   + ' + user.id                      + '\n' 
+      for ( let user of lostFollowers )
+        report += '   - ' + user.id                      + '\n'      
+      if ( newFriends.length + lostFriends.length > 0 ) 
+        report += '# diff friends: '                         + '\n'
+      for ( let user of newFriends )
+        report += '   + ' + user.id                      + '\n' 
+      for ( let user of lostFriends )
+        report += '   - ' + user.id                      + '\n' 
+      report += '------------------------'
       resolve(report);
     })
   });
