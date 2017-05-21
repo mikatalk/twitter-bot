@@ -17,13 +17,25 @@ const db = mysql.createPool({
   database : config.DB_NAME
 });
 // process runs once a day so we use a fixed timestamp
-const timestamp = moment().format('YY-MM-DD 00:00:00'); // 'YY-MM-DD hh:mm:ss'
+const today = moment().format('YY-MM-DD 00:00:00');
+//const today = moment().add(-1, 'days').format('YY-MM-DD 00:00:00');
+
+const yesterday = moment(today,'YY-MM-DD 00:00:00').add(-1, 'days').format('YY-MM-DD 00:00:00');
 // import functions
 const { coolDown, kill, log } = require('./utils.js');
 const { createTableUsers, createTableConnections, saveUsers,
   saveFollowerConnections, saveFriendConnections } = require('./db.js');
 const { fetchFollowers, fetchFriends } = require('./twitter-client.js');
 
+/*
+//#######################################
+// uncommend to run report only
+return generateDailyReport(db, today, 
+  moment(today, 'YY-MM-DD 00:00:00').add(-1, 'days').format('YY-MM-DD 00:00:00') 
+).catch(error => kill('[UNCAUGHT ERROR] -> ', error) )
+.then(report => kill(report) ); 
+//#######################################
+*/
 
 // Setup DB tables `Users` and `Connections`
 Promise.all([
@@ -41,23 +53,25 @@ Promise.all([
 // Save new users and daily connections
 .then( values => {
   log('Updating `users` and `connections` table');
-  followers = values[0];
-  friends = values[1]; 
+  let followers = values[0];
+  let friends = values[1];
+  log('followers', followers.length);
+  log('friends', friends.length);
   return Promise.all([
-    saveUsers(db, timestamp, followers, friends),
-    saveFollowerConnections(db, timestamp, followers),
-    saveFriendConnections(db, timestamp, friends)
+    saveUsers(db, today, followers, friends),
+    saveFollowerConnections(db, today, followers),
+    saveFriendConnections(db, today, friends)
   ]);
 }).catch(error => kill('[DB ERROR] -> ', error) )
 // Generate daily report
 .then( (values) => {
-  return generateDailyReport(db, timestamp);
+  return generateDailyReport(db, today, yesterday )
 }).catch(error => kill('[DB REPORT ERROR] -> ', error) )
 // print daily report in a log file
-.then( (values) => {
+.then( (report) => {
+  log( report )
   log('Saving report');
-  return fs.appendFile('./report.txt', 
-    `[${timestamp.slice(0, 8)}] - followers: ${followers.length} - friends: ${friends.length}\n` );  
+  return fs.appendFileSync('./report.txt', report)
 }).catch( error => kill('[FILE REPORT ERROR] -> ', error) )
 // We're done here
 .then( () => {
