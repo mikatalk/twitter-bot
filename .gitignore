@@ -4,6 +4,9 @@
 # ignore vim swap file
 *.swp
 
+# ignore data report
+report.txt
+
 # Logs
 logs
 *.log
