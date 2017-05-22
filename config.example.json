@@ -7,6 +7,10 @@
     "DB_HOST": "localhost",
     "DB_USER": "root",
     "DB_PASSWORD": "XXXXXXXXXX",
-    "DB_NAME": "twitter_bot"
+    "DB_NAME": "twitter_bot",
+    "SEND_EMAIL": true,
+    "EMAIL_SENDER": "twitter_bot@bots.pi",
+    "EMAIL_RECIPIENT": "XXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "EMAIL_SUBJECT": "Twitter Bot Stats"
 }
 

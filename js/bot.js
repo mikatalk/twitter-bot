@@ -17,11 +17,11 @@ const db = mysql.createPool({
   database : config.DB_NAME
 });
 // process runs once a day so we use a fixed timestamp
-const today = moment().format('YY-MM-DD 00:00:00');
+const today = moment().add(-1, 'days').format('YY-MM-DD 00:00:00');
 
 const yesterday = moment(today,'YY-MM-DD 00:00:00').add(-1, 'days').format('YY-MM-DD 00:00:00');
 // import functions
-const { coolDown, kill, log } = require('./utils.js');
+const { coolDown, kill, log, emailReport } = require('./utils.js');
 const { createTableUsers, createTableConnections, saveUsers,
   saveFollowerConnections, saveFriendConnections } = require('./db.js');
 const { fetchFollowers, fetchFriends } = require('./twitter-client.js');
@@ -70,8 +70,12 @@ Promise.all([
 .then( (report) => {
   log( report )
   log('Saving report');
-  return fs.appendFileSync('./report.txt', report)
-}).catch( error => kill('[FILE REPORT ERROR] -> ', error) )
+  fs.appendFileSync('./report.txt', report)
+  if ( config.SEND_EMAIL ) {
+    log('Sending report');
+    return emailReport(report);
+  }
+}).catch( error => kill('[EMAIL REPORT ERROR] -> ', error) )
 // We're done here
 .then( () => {
   log('Closing connection');
